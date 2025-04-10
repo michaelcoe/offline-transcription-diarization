@@ -1,0 +1,15 @@
+services:
+  transcription-app:
+    image: transcription-app:latest
+    build: .
+    command: streamlit run transcription-app/main.py
+    ports:
+      - "8051:8051"
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1 # alternatively, use `count: all` for all GPUs
+              capabilities: [gpu]

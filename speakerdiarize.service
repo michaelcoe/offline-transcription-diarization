@@ -1,0 +1,9 @@
+[Unit]
+Description=Run Streamlit Speaker Diarization Program
+
+[Service]
+Type=simple
+ExecStart=/bin/bash /usr/bin/speakerdiarize.sh
+
+[Install]
+WantedBy=multi-user.target
