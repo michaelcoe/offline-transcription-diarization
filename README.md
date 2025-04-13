@@ -29,6 +29,20 @@ You will also need to install ffmpeg:
 sudo apt install ffmpeg
 ```
 
+## Running whisperx
+To run pyannote, you will need to include your Hugging face token in the secrets.toml file located in
+./streamlit/secrets.toml.
+
+The entry should look like:
+
+```
+[hf_credentials]
+hftoken = "my_hf_token"
+```
+
+If the file isn't there, just create a new one.
+
+
 ## Running the Webapp
 
 The basic commands for running the webapp are:

@@ -56,12 +56,16 @@ if 'ip_address' not in st.session_state:
     with open('connections.txt', 'a', encoding='utf-8') as cn:
         cn.write(st.session_state['ip_address'] + '\n')
 
+# get the hf token from global secret file
+st.session_state['hf_token'] = st.secrets.hf_credentials.hftoken
+
 # transcribe the audio
 #@st.cache_resource(show_spinner="Transcribing...")
 def transcription(audio_file_name, model):
     """Uses different packages to transcribe audio file and writes the segments"""
     st.session_state['transcript_file'] = whisperx.transcribe(audio_file_name, model, 
-                st.session_state['eo'], 1, st.session_state['max_speaker'])
+                st.session_state['eo'], st.session_state['par'], 1, st.session_state['max_speaker'],
+		st.session_state['hf_token'])
 
     with codecs.open(st.session_state['transcript_file'], encoding='utf-8') as file:
         data = file.read()
@@ -114,6 +118,11 @@ if __name__ == "__main__":
         max_speaker = st.number_input('Maximum Number Speaker', min_value=1, key='max_speaker',
                                       value=2, step=1)
 
+        par_choice = st.radio("VVT or Paragraph Output",
+                              ['VTT', 'paragraph'],
+                              key='par',
+                              index=0,
+                              horizontal=True)
         # File uploader
         uploaded_file = st.file_uploader(
             "Upload file you want to transcribe",

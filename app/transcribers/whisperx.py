@@ -5,7 +5,51 @@ import math
 import whisperx
 import torch
 
-def transcribe(audio_file_path, model, eo, min_speakers, max_speakers):
+# convert seconds to hms
+def convert_to_hms(seconds: float) -> str:
+    """Converts segment timestamp to hours:minuts:seconds:milliseconds"""
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    milliseconds = math.floor((seconds % 1) * 1000)
+    output = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}.{milliseconds:03}"
+
+    return output
+
+# convert segment to a srt like format
+def convert_seg(segment):
+    """Converts the segment into a string to be output into file"""
+    return (f"{convert_to_hms(segment['start'])} --> {convert_to_hms(segment['end'])}\n"
+            f"{'<v.'+segment['speaker']+'>' + segment['text'].lstrip()+ '</v>'}\n\n")
+
+
+# convert segment to a srt like format in a paragraph
+def convert_segs_par(result):
+    """Converts the segments into a string to be output into file by speaker"""
+    paragraph_output = {}
+    speaker = result['segments'][0]['speaker']
+    more_than_one = False
+    paragraph = ''
+    paragraph_output = {'speaker':[], 'paragraph':[]}
+
+    for segment in result['segments']:
+        if segment['speaker'] == speaker:
+            paragraph += segment['text']
+        else:
+            more_than_one = True
+            paragraph_output['speaker'].append(speaker)
+            paragraph_output['paragraph'].append(paragraph)
+            speaker = segment['speaker']
+            paragraph = segment['text']
+
+    if not more_than_one:
+        paragraph_output['speaker'] = speaker
+        paragraph_output['paragraph'] = paragraph
+
+    return more_than_one, paragraph_output
+
+
+
+def transcribe(audio_file_path, model, eo, par, min_speakers, max_speakers, hf_token):
     """Uses whisperx to transcribe and diarize """
     batch_size = 16
     # determine the free memory
@@ -47,7 +91,6 @@ def transcribe(audio_file_path, model, eo, min_speakers, max_speakers):
     del model_a
 
     # 3. Assign speaker labels
-    hf_token = 'your_hf_token_here'
     diarize_model = whisperx.DiarizationPipeline(use_auth_token=hf_token, device=device)
 
     # add min/max number of speakers if known
@@ -63,36 +106,23 @@ def transcribe(audio_file_path, model, eo, min_speakers, max_speakers):
 
     result = whisperx.assign_word_speakers(diarize_segments, result)
 
-    # collect the text in a paragraph format
-    paragraph_output = {}
-    speaker = result['segments'][0]['speaker']
-    more_than_one = False
-    paragraph = ''
-    paragraph_output = {'speaker':[], 'paragraph':[]}
-
-    for segment in result['segments']:
-        if segment['speaker'] == speaker:
-            paragraph += segment['text']
-        else:
-            more_than_one = True
-            paragraph_output['speaker'].append(speaker)
-            paragraph_output['paragraph'].append(paragraph)
-            speaker = segment['speaker']
-            paragraph = segment['text']
-
-    if not more_than_one:
-        paragraph_output['speaker'] = speaker
-        paragraph_output['paragraph'] = paragraph
-
-    # write the transcription file file
-    tr_file_path = Path(audio_file_path + '.txt')
-    with open(tr_file_path, 'w', encoding='utf-8') as tf:
-        if more_than_one:
-            for i, speaker in enumerate(paragraph_output['speaker']):
-                tf.write(speaker + '\n')
-                tf.write(paragraph_output['paragraph'][i].lstrip() + '\n\n')
-        else:
-            tf.write(paragraph_output['speaker'] + '\n')
-            tf.write(paragraph_output['paragraph'].lstrip() + '\n\n')
+    if par=='paragaph':
+        more_than_one, paragraph_output = convert_segs_par(result)
+        # write the transcription file file
+        tr_file_path = Path(audio_file_path + '.txt')
+        with open(tr_file_path, 'w', encoding='utf-8') as tf:
+            if more_than_one:
+                for i, speaker in enumerate(paragraph_output['speaker']):
+                    tf.write(speaker + '\n')
+                    tf.write(paragraph_output['paragraph'][i].lstrip() + '\n\n')
+            else:
+                tf.write(paragraph_output['speaker'] + '\n')
+                tf.write(paragraph_output['paragraph'].lstrip() + '\n\n')
+    else:
+        # write the webvtt file
+        tr_file_path = Path(audio_file_path + '.vtt')
+        with open(tr_file_path, 'w', encoding='utf-8') as tf:
+            for i, segment in enumerate(result['segments'], start=1):
+                tf.write(f"{i}\n{convert_seg(segment)}")
 
     return tr_file_path
