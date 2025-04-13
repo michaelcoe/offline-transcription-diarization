@@ -172,3 +172,12 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# out files
+*.out
+
+# secrets file
+secrets.toml
+
+# tracking file
+connections.txt
