@@ -28,18 +28,22 @@ def convert_segs_par(result):
     paragraph_output = {}
     speaker = result['segments'][0]['speaker']
     more_than_one = False
+    decrement = 0
     paragraph = ''
     paragraph_output = {'speaker':[], 'paragraph':[]}
 
     for segment in result['segments']:
-        if segment['speaker'] == speaker:
-            paragraph += segment['text']
-        else:
-            more_than_one = True
-            paragraph_output['speaker'].append(speaker)
-            paragraph_output['paragraph'].append(paragraph)
-            speaker = segment['speaker']
-            paragraph = segment['text']
+        try:
+            if segment['speaker'] == speaker:
+                paragraph += segment['text']
+            else:
+                more_than_one = True
+                paragraph_output['speaker'].append(speaker)
+                paragraph_output['paragraph'].append(paragraph)
+                speaker = segment['speaker']
+                paragraph = segment['text']
+        except:
+            decrement += 1
 
     if not more_than_one:
         paragraph_output['speaker'] = speaker
@@ -123,6 +127,9 @@ def transcribe(audio_file_path, model, eo, par, min_speakers, max_speakers, hf_t
         tr_file_path = Path(audio_file_path + '.vtt')
         with open(tr_file_path, 'w', encoding='utf-8') as tf:
             for i, segment in enumerate(result['segments'], start=1):
-                tf.write(f"{i}\n{convert_seg(segment)}")
+                try:
+                    tf.write(f"{i-decrement}\n{convert_seg(segment)}")
+                except:
+                    decrement += 1
 
     return tr_file_path
